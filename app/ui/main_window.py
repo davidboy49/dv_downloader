@@ -39,6 +39,7 @@ from app.core.models import DownloadItem, Profile, VideoMetadata
 from app.core.profile_fetcher import ProfileFetchTask
 from app.core.profiles import ProfileStore
 from app.core.ytdlp_client import YtdlpClient
+from app.core.app_paths import resolve_base_dir
 
 
 class LinksDialog(QDialog):
@@ -495,7 +496,7 @@ class QueueTab(QWidget):
         row = self._row_by_id.get(item.item_id)
         if row is not None:
             existing = self._table.item(row, 0)
-            if not existing or existing.data(Qt.ItemDataRole.UserRole) != item.item_id:
+            if existing and existing.data(Qt.ItemDataRole.UserRole) != item.item_id:
                 row = None
         if row is None:
             row = self._row_for_item_id(item.item_id)
@@ -741,7 +742,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("dv_downloader")
         self.resize(1200, 800)
 
-        self._base_dir = Path(__file__).resolve().parents[2]
+        self._base_dir = resolve_base_dir()
         self._logger = AppLogger(self._base_dir)
 
         self._profile_store = ProfileStore(self._base_dir)
