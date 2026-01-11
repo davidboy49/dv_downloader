@@ -484,20 +484,26 @@ class QueueTab(QWidget):
             self._add_row(item)
 
     def _remove_row(self, item_id: str) -> None:
-        row = self._row_by_id.pop(item_id, None)
+        row = self._row_for_item_id(item_id)
         if row is None:
             return
+        self._row_by_id.pop(item_id, None)
         self._table.removeRow(row)
-        self._row_by_id = {
-            self._table.item(idx, 0).data(Qt.ItemDataRole.UserRole): idx
-            for idx in range(self._table.rowCount())
-            if self._table.item(idx, 0)
-        }
+        self._rebuild_row_map()
 
     def _update_row(self, item: DownloadItem) -> None:
         row = self._row_by_id.get(item.item_id)
+        if row is not None:
+            existing = self._table.item(row, 0)
+            if not existing or existing.data(Qt.ItemDataRole.UserRole) != item.item_id:
+                row = None
+        if row is None:
+            row = self._row_for_item_id(item.item_id)
         if row is None:
             return
+        sorting = self._table.isSortingEnabled()
+        if sorting:
+            self._table.setSortingEnabled(False)
         self._set_item(row, 0, item.status, item.item_id)
         self._set_item(row, 1, item.title)
         self._set_item(row, 2, _format_duration(item.duration))
@@ -511,6 +517,9 @@ class QueueTab(QWidget):
         self._set_item(row, 7, progress)
         self._set_item(row, 8, item.output_path)
         self._set_item(row, 9, item.profile_name)
+        if sorting:
+            self._table.setSortingEnabled(True)
+            self._rebuild_row_map()
 
     def _set_item(self, row: int, col: int, text: str, item_id: Optional[str] = None) -> None:
         item = self._table.item(row, col)
@@ -536,6 +545,22 @@ class QueueTab(QWidget):
         self._profile_combo.clear()
         for profile in profiles:
             self._profile_combo.addItem(profile.name, profile)
+
+    def _row_for_item_id(self, item_id: str) -> Optional[int]:
+        for row in range(self._table.rowCount()):
+            item = self._table.item(row, 0)
+            if item and item.data(Qt.ItemDataRole.UserRole) == item_id:
+                return row
+        return None
+
+    def _rebuild_row_map(self) -> None:
+        self._row_by_id = {}
+        for row in range(self._table.rowCount()):
+            item = self._table.item(row, 0)
+            if item:
+                item_id = item.data(Qt.ItemDataRole.UserRole)
+                if item_id:
+                    self._row_by_id[item_id] = row
 
 
 class ProfilesTab(QWidget):
@@ -632,9 +657,14 @@ class ProfilesTab(QWidget):
     def _on_fetched(self, items: List[VideoMetadata]) -> None:
         self._current_task = None
         self._results = items
+        sorting = self._table.isSortingEnabled()
+        if sorting:
+            self._table.setSortingEnabled(False)
         self._table.setRowCount(0)
         for item in items:
             self._append_row(item)
+        if sorting:
+            self._table.setSortingEnabled(True)
         self._logger.info(f"Profile fetch complete: {len(items)} item(s)")
 
     def _on_fetch_error(self, message: str) -> None:

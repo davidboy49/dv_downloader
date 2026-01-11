@@ -114,9 +114,17 @@ class YtdlpClient:
     def _to_metadata(self, info: dict) -> VideoMetadata:
         url = self._resolve_url(info)
         source = self._source_from_url(url) or info.get("extractor", "unknown")
+        title = (
+            info.get("title")
+            or info.get("fulltitle")
+            or info.get("display_id")
+            or info.get("id")
+            or url
+            or "Untitled"
+        )
         return VideoMetadata(
             url=url,
-            title=info.get("title") or "Untitled",
+            title=title,
             source=source,
             duration=self._to_int(info.get("duration")),
             view_count=self._to_int(info.get("view_count")),
