@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
     QTabWidget,
     QVBoxLayout,
     QWidget,
+    QHeaderView,
 )
 
 from app.core.download_manager import DownloadManager
@@ -322,6 +323,7 @@ class QueueTab(QWidget):
         self._cancel_button = QPushButton("Cancel Selected")
         self._clear_done_button = QPushButton("Clear Completed")
         self._clear_failed_button = QPushButton("Clear Failed")
+        self._clear_all_button = QPushButton("Clear All")
 
         self._add_links_button.clicked.connect(self._on_add_links)
         self._start_button.clicked.connect(self._on_start)
@@ -331,6 +333,7 @@ class QueueTab(QWidget):
         self._cancel_button.clicked.connect(self._on_cancel)
         self._clear_done_button.clicked.connect(self._manager.clear_completed)
         self._clear_failed_button.clicked.connect(self._manager.clear_failed)
+        self._clear_all_button.clicked.connect(self._on_clear_all)
 
         self._table = QTableWidget(0, 10)
         self._table.setHorizontalHeaderLabels(
@@ -349,8 +352,10 @@ class QueueTab(QWidget):
         )
         self._table.setAlternatingRowColors(True)
         self._table.horizontalHeader().setStretchLastSection(True)
+        self._table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self._table.setSortingEnabled(True)
 
         form = QFormLayout()
         output_row = QHBoxLayout()
@@ -372,12 +377,15 @@ class QueueTab(QWidget):
         buttons.addWidget(self._cancel_button)
         buttons.addWidget(self._clear_done_button)
         buttons.addWidget(self._clear_failed_button)
+        buttons.addWidget(self._clear_all_button)
 
         layout = QVBoxLayout()
         layout.addLayout(form)
         layout.addLayout(buttons)
         layout.addWidget(self._table)
         self.setLayout(layout)
+        layout.setStretchFactor(self._table, 1)
+        self._table.setMinimumHeight(320)
 
         self._manager.item_added.connect(self._add_row)
         self._manager.item_updated.connect(self._update_row)
@@ -452,6 +460,18 @@ class QueueTab(QWidget):
         if not ids:
             return
         self._manager.cancel_items(ids)
+
+    def _on_clear_all(self) -> None:
+        if self._table.rowCount() == 0:
+            return
+        if (
+            QMessageBox.question(
+                self, "Clear All", "Remove all items from the queue?"
+            )
+            != QMessageBox.StandardButton.Yes
+        ):
+            return
+        self._manager.clear_all()
 
     def _add_row(self, item: DownloadItem) -> None:
         row = self._table.rowCount()
@@ -556,7 +576,9 @@ class ProfilesTab(QWidget):
         self._table.setHorizontalHeaderLabels(["Select", "Title", "Duration", "Views", "Video URL"])
         self._table.setAlternatingRowColors(True)
         self._table.horizontalHeader().setStretchLastSection(True)
+        self._table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self._table.setSortingEnabled(True)
 
         form = QFormLayout()
         form.addRow("Platform:", self._platform_combo)
@@ -576,6 +598,8 @@ class ProfilesTab(QWidget):
         layout.addLayout(actions)
         layout.addWidget(self._table)
         self.setLayout(layout)
+        layout.setStretchFactor(self._table, 1)
+        self._table.setMinimumHeight(280)
 
     def _on_fetch(self) -> None:
         profile_url = self._profile_url.text().strip()

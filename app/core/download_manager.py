@@ -245,6 +245,14 @@ class DownloadManager(QObject):
     def clear_failed(self) -> None:
         self._remove_by_status("Failed")
 
+    def clear_all(self) -> None:
+        for item_id in list(self._items.keys()):
+            self._cancel_item(item_id, status="Canceled")
+        for item_id in list(self._items.keys()):
+            self._items.pop(item_id, None)
+            self.item_removed.emit(item_id)
+        self._save_queue()
+
     def load_queue(self) -> None:
         if not self._queue_path.exists():
             return
